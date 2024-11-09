@@ -1,0 +1,15 @@
+Installation notes for fd2python.
+
+1. Modify Makefile and change the following appropriately:
+
+        INSTALL_ROOT    = /home/jmerritt/gnu
+        X11_ROOT        = /usr/X11R6
+        FORMS_ROOT      = /usr/X11R6
+        PATH_TO_FDESIGN = $(X11_ROOT)/bin/fdesign
+
+2. make
+
+   All this does is copy fd2python and forms.i to the install
+   include directory.
+
+Questions and comments: John.H.Merritt@gsfc.nasa.gov

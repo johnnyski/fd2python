@@ -1,0 +1,141 @@
+Forms to Python conversion.  v1.1
+--------------------------------------------------------
+     By: John H. Merritt
+         Emergent Information Technologies Inc.
+         Vienna VA
+   Date: 11/28/01
+License: GPL
+  email: John.H.Merritt@gsfc.nasa.gov
+--------------------------------------------------------
+Description
+-----------
+
+fd2python creates a python interface to the Xforms graphics
+library. It provides features that can build template main code,
+template callback code, and a template makefile.  fd2python can be
+used seemlessly from 'fdesign -python'.
+
+fd2python uses the SWIG program to construct the python interface to
+the Xforms library.
+
+fd2python will generate a python interface via the 'altformat' conversion
+option of the fdesign program.  This program was derived from fd2perl.
+
+Discussion
+----------
+
+1. fdesign -python file
+
+   a. You can specify 'Emit callbacks' or 'Emit mainline' under options.
+   b. Saving the will generate the following files:
+      file.fd       - The ascii forms design file.
+      file.c        - The altformat which fd2python uses to generate python.
+      file.h        - Unused.
+      file.i        - A SWIG interface file.
+      file.py       - Python to create the forms.
+      file_cb.c     - C wrappers to invoke python callbacks.  These routines
+                      immediately call the python routine by a similar name.
+      file_cb.py    - Python callback code.  These are the routines you
+                      modify to perform call back functions.
+      file_main.py  - Sample mainline which you modify.
+
+   c. If any files preexist, then a '.new' suffix is added.
+
+-OR-
+
+1. fd2python --callback file
+
+   This will generate the files mentioned in 1b, but you don't need
+   to run 'fdesign'  The argument is specified without the '.fd'
+   suffix.  It uses 'file.fd'.
+
+You should modify file_cb.py, file_main.py, to perform any actions and
+functions you need for you application.  
+
+CAVEAT: Quitting the application must be done in the file_cb.c code.  
+        It seems that sys.exit(0) doesn't work from the python code.
+        I don't know why.  This may be a bug.
+
+The simplest way to proceed is to run 'fd2python --makefile app'. 
+It generates a file 'app.makefile' which will work out of the box.
+Copy app.makefile to Makefile and run make.
+
+It executes the following, assuming that the forms library is in
+/usr/local or some default location.  If not, you can specify the
+locations with -I or -L options appropiately.
+
+   fd2python --callback file
+   swig -I/usr/X11R6/include -python file.i
+   cc -fpic -I. -I/usr/include/python   -c -o file_wrap.o file_wrap.c
+   cc -fpic -I. -I/usr/include/python   -c -o file_cb.o file_cb.c
+   cc -shared -o filewrap.so file_wrap.o file_cb.o -lforms -L/usr/X11R6/lib -lX11
+
+Then, you can run 'file_main.py'.  You should modify it.  It will not 
+work out of the box.
+
+The C functions are found in 'file_cb.c' which
+passes control back to python via a 'call_python' method.
+
+The file 'forms.i' is the initial SWIG interface specification for 
+the forms library.  The file 'file.i' includes the 'forms.i' file via
+a SWIG '%include' statement, then SWIG is run and the resulting output
+file 'file_wrap.c' is compiled.
+
+Python methods can be in any python file which may be referenced via
+an import statement.
+
+Take a look at the files in example/.   That is a sample application
+and it should get you started.
+
+2. Run 'fd2python -main app' to generate a template mainline program.  This
+   template will not run.  You will have to modify it.
+
+3. Run 'fd2python -makefile app' to generate a template makefile.  The 
+   resulting 'app.makefile' will work.  You won't need to modify
+   it, unless you have additional files to link with your application.
+
+4. Run 'fd2python --help', for more information on the usage.
+
+Requirements
+------------
+
+SWIG 1.3 - Earlier versions don't handle functions as parameters easily.
+           Functions as parameters are how callbacks are defined.
+
+Python 1.5 or later.
+Xforms 0.89. - I have not tried it with 0.88 or earlier versions.
+
+Limitations
+-----------
+
+When generating the 'main' template, the names of the forms are not
+retained.
+
+The convertion is derived from the 'altformat' of fdesign.
+
+Problems
+--------
+
+1. When you run SWIG, you will get the following warning messages:
+.../include/forms.h:973. Variable length arguments not supported (ignored).
+.../include/forms.h:2780. Identifier 'flimage_alloc' redeclared (ignored).
+.../include/forms.h:2769. Previous declaration of 'flimage_alloc'
+.../include/forms.h:2804. Variable length arguments not supported (ignored).
+.../include/forms.h:2864. Identifier 'fl_init_RGBdatabase' redeclared (ignored).
+.../include/forms.h:440. Previous declaration of 'fl_init_RGBdatabase'
+.../include/forms.h:2865. Identifier 'fl_lookup_RGBcolor' redeclared (ignored).
+.../include/forms.h:441. Previous declaration of 'fl_lookup_RGBcolor'
+.../include/forms.h:3237. Identifier 'fl_hide_fselector' redeclared (ignored).
+.../include/forms.h:3214. Previous declaration of 'fl_hide_fselector'
+.../include/forms.h:3478. Variable length arguments not supported (ignored).
+.../include/forms.h:3479. Variable length arguments not supported (ignored).
+
+This is not a problem and the '(ignored)' statement are harmless.
+
+2. Be sure that Makefile was modified to set the following appropriately:
+
+        INSTALL_ROOT    = /home/jmerritt/gnu
+        X11_ROOT        = /usr/X11R6
+        FORMS_ROOT      = /usr/X11R6
+        PATH_TO_FDESIGN = $(X11_ROOT)/bin/fdesign
+

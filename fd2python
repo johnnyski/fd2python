@@ -1,0 +1,600 @@
+#!/usr/bin/perl -w
+#-*-perl-*-
+# Did you think this was going to be written in python?
+######################################################################
+# 
+# File: fd2python
+# Author: John.Merritt@gsfc.nasa.gov
+# Date: 10/31/01
+# Location: Code 931
+#           NASA/GSFC
+#           Greenbelt, MD 20771
+# Derived from fd2perl.
+# License: GNU Public License
+# Copyright: 2001 John H. Merritt
+######################################################################
+#    This file is part of fd2python.
+#
+#    fd2python is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    fd2python is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with fd2python; if not, write to the Free Software
+#    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+######################################################################
+# Since fd2perl was written in perl, I built on that work.
+# I didn't need to change very much in order to generate python code.
+# Header comments from fd2perl are retained below:
+######################################################################
+# 
+# Created:       Sat Sep 23 23:47:54 1995 by Zoran Popovic
+#
+# 
+# 
+# Modifications:
+#		 changed to fdesign filter Thu Mar 13 09:47:24 1997
+#
+# parse a c or fd file produced by fdesign and create the
+# appropriate perl file.  If converting from the C file make sure
+# it is dumped by fdesign in "Alt Format".
+# 
+######################################################################
+
+use Getopt::Long;
+
+
+######################################################################
+#                                                                    #
+# Configure: Specify the path of the 'fdesign' program.              #
+#                                                                    #
+######################################################################
+$fdesign    = "/usr/X11R6/bin/fdesign";
+$version    = "v1.1";
+$x11_root   = "/usr/X11R6";
+$forms_root = "/home/jmerritt/gnu";
+#$forms_root = "/home/jmerritt/gnu";
+######################################################################
+#                                                                    #
+# End of Configuration.                                              #
+#                                                                    #
+######################################################################
+
+
+$verbose_parse  = 0;
+$suffix         = "py";
+$opt_callback   = 0;
+$opt_main       = 0;
+$opt_altformat  = 0;
+$opt_compensate = 0;
+$opt_makefile   = 0;
+$opt_help       = 0;
+
+sub copyright {
+    print STDERR <<"EOF";
+
+fd2python version $version, Copyright (C) 2001 by John H. Merritt.
+fd2python comes with ABSOLUTELY NO WARRANTY.
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License.
+
+EOF
+}
+
+sub usage {
+   print STDERR <<EOF;
+Usage: fd2python [-altformat] [-makefile] [-callback] [-main] [-compensate] [-help] app
+
+Discussion:
+
+   fd2python generates a file called app.py which is a python script that
+   calls the XForms routines to construct the gui defined in fdesign file
+   app.fd.  Additionally, other files may be generated via selectable
+   options: makefile template, callback python and C files, and a template
+   python mainline.
+
+Options and Parameters:
+
+   -altformat  - Use alternate formatted C files.  Otherwise, the fdesign
+                 file (*.fd) is converted via 'fdesign -altformat -convert'.
+                 Normally, you do not need this.
+
+   -makefile   - Generate a template app.makefile.  If the file already exists,
+                 then the suffix '.new' is added to the filename.
+
+   -callback   - Generate python, C and SWIG call back files: app_cb.py,
+                 app_cb.c, and app.i.  If any of these files exists, then
+                 the suffix '.new' is added to the filenames.
+
+   -main       - Generate a template python main program: app_main.py.  If
+                 this file exists, then the suffix '.new' is added to the
+                 filename.
+
+   -compensate - Not used.
+
+   -help       - This message.
+
+   app         - The input fdesign file app.fd.
+
+EOF
+    copyright();
+
+    die("Improper usage.");
+}
+
+$result = GetOptions('makefile!', 'callback!', 'main!', 'altformat!', 'compensate!', 'help!');
+usage() if ($#ARGV != 0);
+usage() unless ($result);
+usage() if ($opt_help);
+$opt_compensate = $opt_compensate;
+
+$infile_base = shift;
+if ($opt_altformat) {
+	$infile_format = "c";
+} else {
+	$infile_format = "fd";
+}
+
+copyright();
+$infile = "$infile_base.$infile_format";
+$outfile = "$infile_base.$suffix";
+$formswrap = "$infile_base" . "wrap";
+
+$out_header= <<"EOH";
+#!/usr/bin/python
+#-*-python-*-
+# Automatically generated by fd2python from fdesign file $infile
+#
+from $formswrap import *
+import __main__
+#
+EOH
+
+$vregex = '\w+(?:\[[0-9]+\])?';
+
+if ($infile_format eq "fd") {
+   system "$fdesign -altformat -convert $infile"
+     and die("invoking fdesign");
+}   
+
+$cfile = "$infile_base.c";
+
+open(IN, "<$cfile") or die ("opening $cfile");
+open(OUT, ">$outfile") or die ("opening $outfile");
+print OUT $out_header;
+print OUT "\n";
+
+$chunk="";
+
+$tab_width = 2;
+$indent_level = 0;
+#$/ = undef;
+
+while(<IN>) {
+    # chunk ends with a semi-colon ;
+    if (/^([^\;]*\;)(.*)/) {
+	$chunk .= $1;
+	my $rest = $2;
+
+# FIXME: Bug?  I get the following message:
+# Use of uninitialized value in substitution iterator at fd2python line 117, <IN> line 7.
+# Line 7 is a comment line.  So, that message is generated here.
+	# this horrible thing strips all C comments
+        $chunk =~ s#/\*[^*]*\*+([^/*][^*]*\*+)*/|("(\\.|[^"\\])*"|'(\\.|[^'\\])*'|.[^/"'\\]*)#$2#gs;
+
+	# this horrible thing strips all C comments
+#	$chunk =~ s#/\*[^*]*\*+([^/*][^*]*\*+)*/|([^/"']*("[^"\\]*(\\[\d\D][^"\\]*)*"[^/"']*|'[^'\\]*(\\[\d\D][^'\\]*)*'[^/"']*|/+[^*/][^/"']*)*)#$2#g; 
+ 
+        convert_chunk("$chunk");
+	$chunk=$rest;
+    } else {
+	$chunk .= $_;
+    }
+}
+convert_chunk("$chunk");
+close(IN);
+close(OUT);
+
+
+
+# Now, create a callback python and c files.   The callbacks are uppercase
+# in C and called from python.   Then, C calls the lowercase name.
+$file = "$infile_base" . "_cb.py";
+$file .= ".new" if -e $file;
+create_py_callbacks($file) if $opt_callback;
+
+$file = "$infile_base" . "_cb.c";
+$file .= ".new" if -e $file;
+create_c_callbacks($file) if $opt_callback;
+
+$file = "$infile_base" . ".i";
+$file .= ".new" if -e $file;
+create_swig_interface($file) if $opt_callback;
+
+$file = "$infile_base" . "_main.py";
+$file .= ".new" if -e $file;
+create_main($infile_base, $file) if $opt_main;
+
+$file = "$infile_base" . ".makefile";
+$file .= ".new" if -e $file;
+create_makefile($infile_base, $file) if $opt_makefile;
+
+####################################################################
+##                           END OF MAIN                          ##
+####################################################################
+
+sub create_py_callbacks {
+    local($outfile) = @_;
+    open(OUT, ">$outfile");
+    print OUT <<EOF;
+#
+# Automatically generated by 'fd2python --callback'
+#
+from $formswrap import *
+import __main__
+import sys
+
+# Note: For some reason, the sys.exit(0) call doesn't work.  It returns back
+# to the C routine that called the python routine.
+EOF
+
+    foreach $f (sort keys(%callbacks)) {
+	print OUT "def $f(obj, arg):\n";
+	print OUT "  pass\n";
+	print OUT "\n";
+    }
+
+}
+
+sub create_main {
+    local($basename, $outfile) = @_;
+    open(OUT, ">$outfile");
+    my $mycb_module = $basename . "_cb";
+
+    print OUT <<EOF;
+#!/usr/bin/python
+#
+# Automatically generated by 'fd2python --main'
+#
+
+from $mycb_module import *
+from $basename import *
+
+#--------- MAIN ---------
+if __name__ == '__main__':
+  title = "Your window title."
+  display = fl_init();
+
+  create_the_forms();
+
+# Look in $basename.py for the names of the forms created, where 
+# 'create_the_forms()' is defined.  It's not necessary to specify
+# the '__main__' prefix. For example, if the form created is
+# '__main__.apple', then simply specify 'apple' in place of 'yourform'.
+
+  fl_show_form(yourform, FL_PLACE_CENTER, FL_FULLBORDER, title);
+  while 1:
+    obj = fl_do_forms()
+EOF
+}
+
+sub create_c_callbacks {
+    local($outfile) = @_;
+    open(OUT, ">$outfile");
+    print OUT <<EOF;
+/*
+ * Automatically generated by 'fd2python --callback'
+ */
+
+#include <forms.h>
+void call_python (char *method, FL_OBJECT *obj, int arg);
+
+/*
+ * Note: for some reason, the sys.exit(0) call does not work.  It returns back
+ * to the C routine that called the python routine.  
+ * You must use 'exit(0)' from a C routine.
+ */
+
+void C_EXIT(int code)
+{
+    exit(code);
+}
+
+EOF
+
+    foreach $f (sort keys(%callbacks)) {
+        ($F = $f) =~ s/(.*)/\U$1/g;
+	print OUT "void $F (FL_OBJECT *obj, long arg)\n";
+	print OUT "{\n";
+	print OUT "  call_python(\"$f\", obj, arg);\n";
+	print OUT "}\n";
+	print OUT "\n";
+    }
+
+}
+
+sub create_makefile {
+    local($basename, $outfile) = @_;
+    open(OUT, ">$outfile");
+
+    print OUT <<"EOF";
+######################################################################
+# Template Makefile for python/xforms applications.
+#
+# Automatically generated by fd2python -makefile $basename
+#
+EOF
+    print OUT <<'EOF';
+# Use this as a template for your python/xforms application.
+# You probably only need to change three or four lines.
+# Change APPLICATION
+# Change FORMS_ROOT
+# Change X11_INC
+# Change 'o =', if you add any additional C code.  For instance,
+#               if your callbacks are written in C instead of python.
+######################################################################
+EOF
+
+    print OUT <<EOF;
+APPLICATION  = $basename
+FORMS_ROOT   = $forms_root
+X11_ROOT     = $x11_root
+EOF
+    
+    print OUT <<'EOF';
+FORMS_INCDIR = $(FORMS_ROOT)/include
+FORMS_LIBDIR = $(FORMS_ROOT)/lib
+X11_INCDIR = $(X11_ROOT)/include
+X11_LIBDIR = $(X11_ROOT)/lib
+
+CFLAGS = -fpic -I. -I$(FORMS_INCDIR) -I/usr/include/python
+LDFLAGS = -shared
+LIBS = -L$(FORMS_LIBDIR) -lforms -L$(X11_LIBDIR) -lX11
+
+
+all:  ${APPLICATION}wrap.so
+
+o = ${APPLICATION}_wrap.o ${APPLICATION}_cb.o
+
+${APPLICATION}wrap.so: $o
+	$(CC) $(LDFLAGS) -o $@ $o $(LIBS)
+
+${APPLICATION}_wrap.c: ${APPLICATION}.i Makefile
+	-swig -I$(FORMS_INCDIR) -I$(X11_INCDIR) -python ${APPLICATION}.i
+
+${APPLICATION}.i ${APPLICATION}_cb.c: ${APPLICATION}.fd
+	-fd2python --callback ${APPLICATION}
+
+clean::
+	-rm $o
+	-rm *.so
+	-rm ${APPLICATION}_wrap.c
+	-rm *.pyc
+	-rm ${APPLICATION}.h
+	-rm ${APPLICATION}.c
+	-rm ${APPLICATION}_cb.c
+	-rm ${APPLICATION}.py
+	-rm ${APPLICATION}.i
+
+reallyclean::
+	make clean
+	-rm ${APPLICATION}_cb.py
+	-rm ${APPLICATION}_main.py
+	-rm ${APPLICATION}.makefile
+	-rm *.new
+	-rm *.bak
+
+EOF
+}
+
+sub create_swig_interface {
+    local($outfile) = @_;
+    open(OUT, ">$outfile");
+    print OUT <<EOF;
+#
+# Automatically generated by 'fd2python --callback'
+#
+%module $formswrap
+
+%include "forms.i"
+EOF
+    
+    print OUT "\n";
+    print OUT "%{\n";
+    print OUT "#include <forms.h>\n";
+
+    foreach $f (sort keys(%callbacks)) {
+        ($F = $f) =~ s/(.*)/\U$1/g;
+	print OUT "void $F (FL_OBJECT *obj, long arg);\n";
+    }
+    print OUT "void C_EXIT (int code);\n";
+    print OUT "%}\n";
+    print OUT "\n";
+    
+    foreach $f (sort keys(%callbacks)) {
+        ($F = $f) =~ s/(.*)/\U$1/g;
+	print OUT "%constant void $F (FL_OBJECT *obj, long arg);\n";
+    }
+    print OUT "void C_EXIT (int code);\n";
+
+}
+
+
+
+sub convert_chunk {
+    $_ = $_[0];
+
+    SWITCH: {
+	# match '}\n'
+	# There is no function ending, except to change the indent level.
+	/^\s*}\s+/ && 
+	    do {
+		$indent_level--;
+		$verbose_parse && print "- end of function\n";
+		convert_chunk("$'");
+		last SWITCH;
+	    };
+	# match 'void create_form_form(void)'
+	# and generate the corresponding perl function
+	/^\s*void\s+(\w+)\s*\(void\)\s*{\s*/s && 
+	    do {
+		my $sfun = $1;
+		print OUT "\n";
+		print OUT ' ' x ($tab_width * $indent_level);
+		print OUT "def $sfun():\n";
+		$indent_level++;
+		$verbose_parse && print "- function $sfun\n";
+		convert_chunk("$'");
+		last SWITCH;
+	    };
+	# match 'FL_FORM *form_name'
+	# and generate the corresponding perl code
+	/\s*FL_FORM\s+\*($vregex)\s*;/s && 
+	    do {
+#		print OUT ' ' x ($tab_width * $indent_level);
+#		define_var($1);
+#		print OUT "\n";
+		$verbose_parse && print "- FL_FORM $1\n";
+		last SWITCH;
+	    };
+	# match 'FL_OBJECT *obj0, ..., *obj_arr[n], ..., *objn;'
+	# and generate the corresponding perl code
+	/\s*FL_OBJECT\s+([^;]+)\s*;/ && 
+	    do {
+		my @objects = map {s/\*//; s/\s//g; $_} split(/,/, $1);
+#		foreach $obj ( @objects ) {
+#		    print OUT ' ' x ($tab_width * $indent_level);
+#		    define_var($obj);
+#		    print OUT "\n";
+#		}
+		$verbose_parse && print "- FL_OBJECT @objects\n";
+		last SWITCH;
+	    };
+	# match double assignment 'var0 = var1 = expr;'
+	# and generate the appropriate perl code
+	/\s+($vregex)\s*=\s*($vregex)\s*=\s*([^;]+)\s*;/ && 
+	    do {
+		my ($var0, $var1, $expr) = ($1, $2, $3);
+		print OUT ' ' x ($tab_width * $indent_level);
+		set_var($var1, $expr);
+		print OUT "\n";
+		print OUT ' ' x ($tab_width * $indent_level);
+		set_var($var0, $var1);
+		print OUT "\n";
+		$verbose_parse && 
+		  print "- double assignment $var0=$var1=$expr\n";
+		last SWITCH;
+	    };
+	# match single assignment 'var = expr;'
+	# and generate the appropriate perl code
+	/\s+($vregex)\s*=\s*([^;]+)\s*;\s*$/ && 
+	    do {
+		my ($var, $expr) = ($1, $2);
+		print OUT ' ' x ($tab_width * $indent_level);
+		set_var($var, $expr);
+		print OUT "\n";
+		$verbose_parse && print "- assignment $var=$expr\n";
+		last SWITCH;
+	    };
+	# match func call 'function_name(arg0, ..., argn);'
+	# and generate the appropriate perl call
+	/^\s*(\w+\s*\([^\)]*\))\s*;\s*$/ && 
+	    do {
+		print OUT ' ' x ($tab_width * $indent_level);
+		parse_expr($1);
+		print OUT ";\n";
+		$verbose_parse && print "- func call $1\n";
+		last SWITCH;
+	    };
+    }
+}
+
+sub parse_expr {
+    $_ = $_[0];
+    if (/^\s*(\w+)\s*\(([^\)]*)\)\s*$/) {
+	my ($fname, @args) = ($1, split(/,/, $2));
+	@args = map(c2pl($_), @args);
+	if ($fname =~ /_callback$/) {  # callback param is not a scalar var.
+	   $callbacks{$args[1]} = 1;    # Use later, if --callback option.
+	   $args[1] =~ s/^(\w+)$/\U$1\E/;  # Convert to UPPERCASE.
+	}
+	print OUT "$fname(" . join(', ', @args) . ")";
+    }
+    elsif (/^\s*($vregex)\s*$/) {
+	get_var($1);
+    }
+    else {
+	print STDERR "Error: unparsable expression: $_\n";
+	die();
+    }
+}
+
+sub define_var {
+    my ($var, $idx) = parse_var($_[0]);
+    if (defined($idx)) {	
+       $var =~ s/^\$/\@/;
+    }
+    print OUT "$var = \"\"";
+}
+
+sub set_var {
+    my ($unparsed_var, $unparsed_expr) = @_;
+    my ($var, $idx) = parse_var($unparsed_var);
+    if (defined($idx)) {	
+	print OUT "$var\[$idx\] = ";
+    }
+    else {
+	if ($var eq "obj") {
+	    print OUT "$var = ";
+	} else {
+	    print OUT "__main__.$var = ";
+	}
+    }
+    parse_expr($unparsed_expr);
+    print OUT ";";
+}
+
+sub get_var {
+    my ($unparsed_var) = @_;
+    my ($var, $idx) = parse_var($unparsed_var);
+    if (defined($idx)) {	
+	print OUT "$var\[$idx\]";
+    }
+    else {
+	print OUT "$var";
+    }
+}
+
+sub parse_var {
+    $_ = $_[0];
+    if (/^(\w+)\[([0-9]+)\]$/) {
+	(c2pl($1), $2);
+    }
+    elsif (/^(\w+)$/) {
+	(c2pl($1), undef);
+    }
+    else {
+	print STDERR "Error: not a var $_\n";
+	die();
+    }
+}
+
+sub c2pl {
+    $_ = shift;
+
+    return $_ if (/^".*"$/);            # strings remain unchanged
+
+    s/\s+//g; 			        # remove surrounding space
+    return $_ if (/^[A-Z][A-Za-z0-9_]*$/); # constants remain unchanged
+
+    if (/^[^0-9]\w*$/) {
+       return "$_";
+    }
+    return $_;
+}

@@ -1,0 +1,184 @@
+Magic: 13000
+
+Internal Form Definition File
+    (do not change)
+
+Number of forms: 1
+Unit of measure: FL_COORD_PIXEL
+SnapGrid: 1
+
+=============== FORM ===============
+Name: ajax
+Width: 461
+Height: 491
+Number of Objects: 9
+
+--------------------
+class: FL_BOX
+type: UP_BOX
+box: 0 0 461 491
+boxtype: FL_UP_BOX
+colors: FL_COL1 FL_COL1
+alignment: FL_ALIGN_CENTER
+style: FL_NORMAL_STYLE
+size: FL_DEFAULT_SIZE
+lcol: FL_BLACK
+label: 
+shortcut: 
+resize: FL_RESIZE_ALL
+gravity: FL_NoGravity FL_NoGravity
+name: 
+callback: 
+argument: 
+
+--------------------
+class: FL_PIXMAP
+type: NORMAL_PIXMAP
+box: 169 208 114 98
+boxtype: FL_NO_BOX
+colors: FL_COL1 FL_COL1
+alignment: FL_ALIGN_BOTTOM
+style: FL_NORMAL_STYLE
+size: FL_DEFAULT_SIZE
+lcol: FL_BLACK
+label: 
+shortcut: 
+resize: FL_RESIZE_ALL
+gravity: FL_NoGravity FL_NoGravity
+name: ajax_pixmap
+callback: 
+argument: 
+
+--------------------
+class: FL_FRAME
+type: ENGRAVED_FRAME
+box: 10 10 440 40
+boxtype: FL_NO_BOX
+colors: FL_BLACK FL_COL1
+alignment: FL_ALIGN_CENTER
+style: FL_NORMAL_STYLE
+size: FL_DEFAULT_SIZE
+lcol: FL_BLACK
+label: 
+shortcut: 
+resize: FL_RESIZE_ALL
+gravity: FL_NoGravity FL_NoGravity
+name: 
+callback: 
+argument: 
+
+--------------------
+class: FL_MENU
+type: PULLDOWN_MENU
+box: 128 15 100 31
+boxtype: FL_FLAT_BOX
+colors: FL_COL1 FL_MCOL
+alignment: FL_ALIGN_LEFT
+style: FL_BOLD_STYLE
+size: FL_DEFAULT_SIZE
+lcol: FL_BLACK
+label: Configure
+shortcut: 
+resize: FL_RESIZE_ALL
+gravity: FL_NoGravity FL_NoGravity
+name: main_configure_pulldown
+callback: do_main_configure_pulldown
+argument: 0
+  struct: 0
+  global: 1
+
+--------------------
+class: FL_MENU
+type: PULLDOWN_MENU
+box: 343 15 99 31
+boxtype: FL_FLAT_BOX
+colors: FL_COL1 FL_MCOL
+alignment: FL_ALIGN_RIGHT
+style: FL_BOLD_STYLE
+size: FL_DEFAULT_SIZE
+lcol: FL_BLACK
+label: Help
+shortcut: 
+resize: FL_RESIZE_ALL
+gravity: FL_NoGravity FL_NoGravity
+name: main_help_pulldown
+callback: do_main_help_pulldown
+argument: 0
+  struct: 0
+
+--------------------
+class: FL_TEXT
+type: NORMAL_TEXT
+box: 330 70 110 30
+boxtype: FL_BORDER_BOX
+colors: FL_COL1 FL_MCOL
+alignment: FL_ALIGN_TOP_LEFT|FL_ALIGN_INSIDE
+style: FL_NORMAL_STYLE
+size: FL_DEFAULT_SIZE
+lcol: FL_BLACK
+label: 
+shortcut: 
+resize: FL_RESIZE_ALL
+gravity: FL_NoGravity FL_NoGravity
+name: main_ajax_pid_text
+callback: 
+argument: 
+
+--------------------
+class: FL_TEXT
+type: NORMAL_TEXT
+box: 260 70 70 30
+boxtype: FL_FLAT_BOX
+colors: FL_COL1 FL_MCOL
+alignment: FL_ALIGN_RIGHT|FL_ALIGN_INSIDE
+style: FL_NORMAL_STYLE
+size: FL_DEFAULT_SIZE
+lcol: FL_BLACK
+label: Ajax pid
+shortcut: 
+resize: FL_RESIZE_ALL
+gravity: FL_NoGravity FL_NoGravity
+name: 
+callback: 
+argument: 
+
+--------------------
+class: FL_TEXT
+type: NORMAL_TEXT
+box: 260 100 180 30
+boxtype: FL_BORDER_BOX
+colors: FL_COL1 FL_MCOL
+alignment: FL_ALIGN_TOP_LEFT|FL_ALIGN_INSIDE
+style: FL_NORMAL_STYLE
+size: FL_DEFAULT_SIZE
+lcol: FL_BLACK
+label: 
+shortcut: 
+resize: FL_RESIZE_ALL
+gravity: FL_NoGravity FL_NoGravity
+name: main_status_text
+callback: 
+argument: 
+
+--------------------
+class: FL_MENU
+type: PULLDOWN_MENU
+box: 26 15 100 30
+boxtype: FL_FLAT_BOX
+colors: FL_COL1 FL_MCOL
+alignment: FL_ALIGN_LEFT
+style: FL_BOLD_STYLE
+size: FL_DEFAULT_SIZE
+lcol: FL_BLACK
+label: File
+shortcut: 
+resize: FL_RESIZE_ALL
+gravity: FL_NoGravity FL_NoGravity
+name: main_file_pulldown
+callback: do_main_file_pulldown
+argument: 0
+  struct: 0
+  global: 1
+
+==============================
+create_the_forms

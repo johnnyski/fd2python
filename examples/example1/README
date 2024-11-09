@@ -1,0 +1,7 @@
+Simple example illustrating images and pull down menus.
+
+   fd2python --makefile --callback ajax_ui
+   cp ajax_ui.makefile Makefile
+   make
+   ajaxui.py
+

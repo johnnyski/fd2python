@@ -1,0 +1,15 @@
+----------------------------------------------------------------------
+Version: v1.1                            Date: 11/28/01
+
+1. Fixed copyright issues.
+2. Simplified the install and configuration.  All configuration
+   is done in Makefile.  Paths to X11 and fdesign are set there and
+   the Makefile automatically substitutes them into fd2python.
+
+
+----------------------------------------------------------------------
+Version: v1.0                            Date: 11/21/01
+
+1. Initial release.
+
+----------------------------------------------------------------------
